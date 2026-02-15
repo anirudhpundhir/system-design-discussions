@@ -52,7 +52,7 @@ import (
     "strings"
 )
 
-const charset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+const charset = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 func Encode(num uint64) string {
     if num == 0 {
@@ -177,6 +177,7 @@ package main
 
 import (
     "context"
+    "fmt"
     "net/http"
 
     "github.com/gin-gonic/gin"
@@ -298,7 +299,7 @@ class SnowflakeIDGenerator:
     - 12 bits: sequence (4096 per ms per machine)
     """
 
-    EPOCH = 1704067200000  # Jan 1, 2024
+    EPOCH = 1767225600000  # Jan 1, 2026
 
     def __init__(self, machine_id: int):
         if machine_id < 0 or machine_id > 1023:
@@ -377,8 +378,8 @@ CREATE TABLE url_clicks (
 );
 
 -- Partitioned by month for easier management
-CREATE TABLE url_clicks_2024_01 PARTITION OF url_clicks
-    FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');
+CREATE TABLE url_clicks_2026_01 PARTITION OF url_clicks
+    FOR VALUES FROM ('2026-01-01') TO ('2026-02-01');
 
 -- Function to get or create short URL
 CREATE OR REPLACE FUNCTION get_or_create_short_url(
@@ -513,8 +514,6 @@ if __name__ == "__main__":
 ## Docker Compose Setup
 
 ```yaml
-version: '3.8'
-
 services:
   api:
     build: .
