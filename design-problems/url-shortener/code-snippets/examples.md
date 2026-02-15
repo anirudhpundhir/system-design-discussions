@@ -613,7 +613,12 @@ func decode(encoded string, charset string) uint64 {
     base := uint64(len(charset))
     
     for _, char := range encoded {
-        num = num*base + uint64(strings.IndexRune(charset, char))
+        idx := strings.IndexRune(charset, char)
+        if idx == -1 {
+            // Invalid character, return 0 or handle error
+            return 0
+        }
+        num = num*base + uint64(idx)
     }
     
     return num
@@ -753,6 +758,29 @@ func TestCharsetMigration(t *testing.T) {
     // Test case: Verify old codes still work
     oldCharset := "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
     newCharset := "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    
+    // Helper to encode with specific charset
+    encodeWithCharset := func(num uint64, charset string) string {
+        if num == 0 {
+            return string(charset[0])
+        }
+        var result []byte
+        base := uint64(len(charset))
+        for num > 0 {
+            result = append([]byte{charset[num%base]}, result...)
+            num /= base
+        }
+        return string(result)
+    }
+    
+    // Mock lookup function for testing
+    mockLookup := func(id uint64) (string, bool) {
+        // Simulate database lookup - return true for our test ID
+        if id == 1000000 {
+            return "https://example.com", true
+        }
+        return "", false
+    }
     
     // Encode with old charset
     oldCode := encodeWithCharset(1000000, oldCharset) // "4C92"
