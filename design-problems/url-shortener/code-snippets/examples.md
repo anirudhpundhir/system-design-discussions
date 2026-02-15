@@ -595,13 +595,13 @@ const oldCharset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx
 func DecodeWithFallback(encoded string, lookupFunc func(uint64) (string, bool)) (uint64, bool) {
     // Try new charset first
     newID := decode(encoded, newCharset)
-    if url, exists := lookupFunc(newID); exists {
+    if _, exists := lookupFunc(newID); exists {
         return newID, true
     }
     
     // Fall back to old charset for legacy URLs
     oldID := decode(encoded, oldCharset)
-    if url, exists := lookupFunc(oldID); exists {
+    if _, exists := lookupFunc(oldID); exists {
         return oldID, true
     }
     
@@ -671,7 +671,10 @@ func MigrateShortCodes(db *sql.DB) error {
     }
     defer rows.Close()
     
-    tx, _ := db.Begin()
+    tx, err := db.Begin()
+    if err != nil {
+        return err
+    }
     defer tx.Rollback()
     
     for rows.Next() {
@@ -757,13 +760,13 @@ func TestCharsetMigration(t *testing.T) {
 // Add metrics to track which decoder is being used
 func DecodeWithMetrics(encoded string, lookupFunc func(uint64) (string, bool)) (uint64, bool) {
     newID := decode(encoded, newCharset)
-    if url, exists := lookupFunc(newID); exists {
+    if _, exists := lookupFunc(newID); exists {
         metrics.IncrementCounter("decoder.new_charset.success")
         return newID, true
     }
     
     oldID := decode(encoded, oldCharset)
-    if url, exists := lookupFunc(oldID); exists {
+    if _, exists := lookupFunc(oldID); exists {
         metrics.IncrementCounter("decoder.old_charset.fallback")
         log.Warn("Legacy charset used for code: %s", encoded)
         return oldID, true
