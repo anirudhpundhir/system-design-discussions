@@ -110,15 +110,15 @@ Request:
 {
     "long_url": "https://example.com/very/long/path?with=params",
     "custom_alias": "my-link",     // optional
-    "expires_at": "2025-12-31"     // optional
+    "expires_at": "2027-12-31"     // optional
 }
 
 Response: 201 Created
 {
     "short_url": "https://short.ly/abc1234",
     "long_url": "https://example.com/very/long/path?with=params",
-    "created_at": "2024-01-15T10:30:00Z",
-    "expires_at": "2025-12-31T00:00:00Z"
+    "created_at": "2026-01-15T10:30:00Z",
+    "expires_at": "2027-12-31T00:00:00Z"
 }
 ```
 
@@ -138,7 +138,7 @@ Response: 200 OK
 {
     "short_url": "https://short.ly/abc1234",
     "long_url": "https://example.com/very/long/path?with=params",
-    "created_at": "2024-01-15T10:30:00Z",
+    "created_at": "2026-01-15T10:30:00Z",
     "clicks": 1523
 }
 ```
@@ -297,7 +297,7 @@ def generate_short_code():
     return base62_encode(counter)
 
 def base62_encode(num):
-    chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+    chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     result = []
     while num > 0:
         result.append(chars[num % 62])
@@ -513,4 +513,4 @@ Or: hash(short_code) % num_shards
 
 ---
 
-*Last updated: 2024-01-15*
+*Last updated: 2026-02-15*

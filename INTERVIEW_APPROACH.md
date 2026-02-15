@@ -139,7 +139,7 @@ Request:
 Response: 201 Created
 {
     "tweet_id": "tweet_12345",
-    "created_at": "2024-01-15T10:30:00Z"
+    "created_at": "2026-01-15T10:30:00Z"
 }
 
 GET /api/v1/timeline?page=1&limit=20

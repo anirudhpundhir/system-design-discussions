@@ -45,6 +45,7 @@ A comprehensive, collaborative repository for learning system design - built for
 ├── 📄 CLAUDE.md                    # AI assistant guide (Claude-specific)
 ├── 📄 LLM_INTEGRATION.md           # Guide for all LLMs (ChatGPT, Copilot, etc.)
 ├── 📄 INTERVIEW_APPROACH.md        # The Interview Framework
+├── 📄 CONTRIBUTOR_GUIDE.md         # Complete contributor workflow & commands
 ├── 📄 CONTRIBUTING.md              # Contribution guidelines
 │
 ├── 📁 fundamentals/                # Core Concepts
@@ -177,9 +178,9 @@ graph TB
 ## Design Problems (Roadmap)
 
 ### Beginner
-- [ ] URL Shortener
+- [x] URL Shortener
 - [ ] Pastebin
-- [ ] Rate Limiter
+- [x] Rate Limiter
 - [ ] Key-Value Store
 
 ### Intermediate

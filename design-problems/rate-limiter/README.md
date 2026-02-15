@@ -421,7 +421,7 @@ sequenceDiagram
 
 ```
 # Token Bucket (per client)
-HSET rate_limit:client123 tokens 10 last_refill 1704067200
+HSET rate_limit:client123 tokens 10 last_refill 1771027200
 
 # Sliding Window Counter (per client per window)
 SET rate_limit:client123:17040672 45
@@ -468,13 +468,13 @@ endpoints:
 HTTP/1.1 200 OK
 X-RateLimit-Limit: 100
 X-RateLimit-Remaining: 45
-X-RateLimit-Reset: 1704067260
+X-RateLimit-Reset: 1771027260
 
 # When rate limited:
 HTTP/1.1 429 Too Many Requests
 X-RateLimit-Limit: 100
 X-RateLimit-Remaining: 0
-X-RateLimit-Reset: 1704067260
+X-RateLimit-Reset: 1771027260
 Retry-After: 30
 ```
 
@@ -788,4 +788,4 @@ Implementation:
 
 ---
 
-*Last updated: 2024-01-15*
+*Last updated: 2026-02-15*
