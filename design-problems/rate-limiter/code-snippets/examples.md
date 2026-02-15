@@ -844,8 +844,6 @@ def test_concurrent_requests():
 ## Docker Compose Setup
 
 ```yaml
-version: '3.8'
-
 services:
   rate-limiter:
     build: .
