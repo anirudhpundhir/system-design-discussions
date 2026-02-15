@@ -45,6 +45,11 @@ print(encoder.decode("4c92"))   # 1000000
 
 ### Go Implementation
 
+> **⚠️ Breaking Change Notice (2026):**
+> The charset order was updated to match the Python implementation and Base62 standard.
+> If you have existing short codes generated with a different charset order, they will
+> decode to different values. See the [Migration Guide](#base62-charset-migration-guide) below.
+
 ```go
 package shortener
 
@@ -557,3 +562,216 @@ volumes:
   redis_data:
   postgres_data:
 ```
+
+---
+
+## Base62 Charset Migration Guide
+
+### Background
+
+The Go implementation was updated to use the standard Base62 charset order: `0-9a-zA-Z`. If your system previously used a different charset order (e.g., `0-9A-Za-z`), existing short codes will decode to different ID values after the change.
+
+### Impact
+
+- **Short codes generated with the old charset cannot be decoded correctly with the new charset**
+- Example: A short code like `"Ab"` will map to different numeric IDs before and after the change
+- This affects URL redirects, analytics, and any system that relies on decoding short codes
+
+### Migration Strategies
+
+#### Option 1: Dual Decoder (Backward Compatible)
+
+Keep both charsets and try decoding with the new charset first, falling back to the old one:
+
+```go
+package shortener
+
+import "strings"
+
+const newCharset = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+const oldCharset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" // Example old charset
+
+// DecodeWithFallback tries the new charset, falls back to old charset if URL not found
+func DecodeWithFallback(encoded string, lookupFunc func(uint64) (string, bool)) (uint64, bool) {
+    // Try new charset first
+    newID := decode(encoded, newCharset)
+    if url, exists := lookupFunc(newID); exists {
+        return newID, true
+    }
+    
+    // Fall back to old charset for legacy URLs
+    oldID := decode(encoded, oldCharset)
+    if url, exists := lookupFunc(oldID); exists {
+        return oldID, true
+    }
+    
+    return 0, false
+}
+
+func decode(encoded string, charset string) uint64 {
+    var num uint64
+    base := uint64(len(charset))
+    
+    for _, char := range encoded {
+        num = num*base + uint64(strings.IndexRune(charset, char))
+    }
+    
+    return num
+}
+```
+
+#### Option 2: Pre-Migration Lookup Table
+
+Store a mapping of short codes to IDs before the migration:
+
+```sql
+-- Create a migration table to store old short_code -> ID mappings
+CREATE TABLE url_legacy_codes (
+    short_code VARCHAR(10) PRIMARY KEY,
+    url_id BIGINT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Populate before charset change
+INSERT INTO url_legacy_codes (short_code, url_id)
+SELECT short_code, id FROM urls;
+
+-- During redirect, check legacy table first
+CREATE OR REPLACE FUNCTION get_url_by_code(p_short_code VARCHAR)
+RETURNS TABLE(url_id BIGINT, long_url TEXT) AS $$
+BEGIN
+    -- Try direct lookup first
+    RETURN QUERY
+    SELECT id, long_url 
+    FROM urls 
+    WHERE short_code = p_short_code;
+    
+    IF NOT FOUND THEN
+        -- Check legacy mapping
+        RETURN QUERY
+        SELECT u.id, u.long_url
+        FROM url_legacy_codes l
+        JOIN urls u ON u.id = l.url_id
+        WHERE l.short_code = p_short_code;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+#### Option 3: Re-generate All Short Codes
+
+For systems with manageable data volumes:
+
+```go
+// Migration script to re-generate all short codes with new charset
+func MigrateShortCodes(db *sql.DB) error {
+    rows, err := db.Query("SELECT id, short_code FROM urls ORDER BY id")
+    if err != nil {
+        return err
+    }
+    defer rows.Close()
+    
+    tx, _ := db.Begin()
+    defer tx.Rollback()
+    
+    for rows.Next() {
+        var id uint64
+        var oldCode string
+        rows.Scan(&id, &oldCode)
+        
+        // Generate new short code using new charset
+        newCode := Encode(id) // Uses new charset
+        
+        // Update database
+        _, err := tx.Exec(
+            "UPDATE urls SET short_code = $1, legacy_short_code = $2 WHERE id = $3",
+            newCode, oldCode, id,
+        )
+        if err != nil {
+            return err
+        }
+    }
+    
+    return tx.Commit()
+}
+```
+
+#### Option 4: Support Both Codes During Transition
+
+Maintain both old and new short codes during a transition period:
+
+```sql
+-- Add a legacy_short_code column
+ALTER TABLE urls ADD COLUMN legacy_short_code VARCHAR(10);
+CREATE INDEX idx_urls_legacy_code ON urls(legacy_short_code);
+
+-- Generate new codes while keeping old ones
+UPDATE urls SET legacy_short_code = short_code;
+UPDATE urls SET short_code = new_base62_encode(id); -- Using new charset
+
+-- Update redirect logic to check both
+CREATE OR REPLACE FUNCTION redirect_url(p_code VARCHAR)
+RETURNS TEXT AS $$
+DECLARE
+    v_url TEXT;
+BEGIN
+    SELECT long_url INTO v_url FROM urls 
+    WHERE short_code = p_code OR legacy_short_code = p_code;
+    
+    RETURN v_url;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### Recommended Approach
+
+For **production systems with existing data**:
+1. Use **Option 1 (Dual Decoder)** for immediate backward compatibility
+2. Gradually migrate to **Option 4** to support both codes during transition
+3. After a deprecation period, sunset the old codes
+
+For **new systems or systems with no existing data**:
+- Use the standard charset directly without migration concerns
+
+### Testing Migration
+
+```go
+func TestCharsetMigration(t *testing.T) {
+    // Test case: Verify old codes still work
+    oldCharset := "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+    newCharset := "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    
+    // Encode with old charset
+    oldCode := encodeWithCharset(1000000, oldCharset) // "4C92"
+    
+    // Decode should work with fallback
+    id, found := DecodeWithFallback(oldCode, mockLookup)
+    assert.True(t, found)
+    assert.Equal(t, uint64(1000000), id)
+}
+```
+
+### Monitoring Impact
+
+```go
+// Add metrics to track which decoder is being used
+func DecodeWithMetrics(encoded string, lookupFunc func(uint64) (string, bool)) (uint64, bool) {
+    newID := decode(encoded, newCharset)
+    if url, exists := lookupFunc(newID); exists {
+        metrics.IncrementCounter("decoder.new_charset.success")
+        return newID, true
+    }
+    
+    oldID := decode(encoded, oldCharset)
+    if url, exists := lookupFunc(oldID); exists {
+        metrics.IncrementCounter("decoder.old_charset.fallback")
+        log.Warn("Legacy charset used for code: %s", encoded)
+        return oldID, true
+    }
+    
+    metrics.IncrementCounter("decoder.not_found")
+    return 0, false
+}
+```
+
+This allows you to track how many legacy URLs are still in use and plan for complete migration.
