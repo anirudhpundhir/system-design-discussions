@@ -42,7 +42,8 @@ A comprehensive, collaborative repository for learning system design - built for
 ```
 📁 system-design-discussions/
 │
-├── 📄 CLAUDE.md                    # AI assistant guide
+├── 📄 CLAUDE.md                    # AI assistant guide (Claude-specific)
+├── 📄 LLM_INTEGRATION.md           # Guide for all LLMs (ChatGPT, Copilot, etc.)
 ├── 📄 INTERVIEW_APPROACH.md        # The Interview Framework
 ├── 📄 CONTRIBUTING.md              # Contribution guidelines
 │
