@@ -675,12 +675,18 @@ func MigrateShortCodes(db *sql.DB) error {
     if err != nil {
         return err
     }
-    defer tx.Rollback()
+    defer func() {
+        if err != nil {
+            tx.Rollback()
+        }
+    }()
     
     for rows.Next() {
         var id uint64
         var oldCode string
-        rows.Scan(&id, &oldCode)
+        if err := rows.Scan(&id, &oldCode); err != nil {
+            return err
+        }
         
         // Generate new short code using new charset
         newCode := Encode(id) // Uses new charset
@@ -693,6 +699,10 @@ func MigrateShortCodes(db *sql.DB) error {
         if err != nil {
             return err
         }
+    }
+    
+    if err = rows.Err(); err != nil {
+        return err
     }
     
     return tx.Commit()
